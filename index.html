@@ -166,7 +166,6 @@ let staffList = [
   {name:"三井", type:"パート", targetHours:150, maxWeek:5, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
   {name:"松本", type:"パート", targetHours:150, maxWeek:4, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
   {name:"中村", type:"パート", targetHours:80,  maxWeek:4, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
-  {name:"園川", type:"パート", targetHours:60,  maxWeek:3, maxConsec:5, allowedShifts:["⑤早番短","⑥午前短"], earlyPriority:true},
 ];
 // period: "morning" | "afternoon" | "both"
 let shiftTypes = [
@@ -174,8 +173,6 @@ let shiftTypes = [
   {name:"②午後", start:"16:00", end:"20:00", hours:4,    period:"afternoon", isEarly:false},
   {name:"③早番", start:"08:15", end:"14:00", hours:5.75, period:"morning",   isEarly:true},
   {name:"④通し", start:"09:00", end:"20:00", hours:10,   period:"both",      isEarly:false},
-  {name:"⑤早番短", start:"08:15", end:"13:00", hours:4.75, period:"morning",  isEarly:true},
-  {name:"⑥午前短", start:"09:00", end:"13:00", hours:4,    period:"morning",  isEarly:false},
 ];
 let vacations   = {}; // {name: Set<day>}
 let closedDays  = new Set();
