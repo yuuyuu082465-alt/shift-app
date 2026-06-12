@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>シフト自動作成ツール</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Meiryo',sans-serif;background:#f0f4f8;color:#333;font-size:14px}
+h1{background:#1a56db;color:#fff;padding:16px 24px;font-size:20px}
+.container{max-width:1500px;margin:0 auto;padding:16px}
+.card{background:#fff;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.12);padding:16px;margin-bottom:16px}
+h2{font-size:15px;color:#1a56db;margin-bottom:12px;border-left:3px solid #1a56db;padding-left:8px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{background:#1a56db;color:#fff;padding:6px 8px;text-align:center;white-space:nowrap}
+td{border:1px solid #ddd;padding:4px 6px;text-align:center}
+td input[type=text],td input[type=number]{width:100%;border:none;outline:none;text-align:center;font-size:13px;background:transparent}
+.btn{padding:10px 24px;border:none;border-radius:6px;cursor:pointer;font-size:14px;font-weight:bold}
+.btn-primary{background:#1a56db;color:#fff}.btn-primary:hover{background:#1347c0}
+.btn-success{background:#0e9f6e;color:#fff}.btn-success:hover{background:#0b8560}
+.btn-warn{background:#e3a008;color:#fff}.btn-warn:hover{background:#c88900}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:4px;border:none;cursor:pointer;background:#e5edff;color:#1a56db}
+.btn-sm:hover{background:#c7d9ff}
+.btn-danger-sm{background:#fde8e8;color:#c81e1e}.btn-danger-sm:hover{background:#fbd5d5}
+.actions{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;align-items:center}
+.year-month{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.year-month label{font-weight:bold}
+.year-month input{width:80px;padding:4px 8px;border:1px solid #ccc;border-radius:4px;font-size:14px}
+#shiftTable{overflow-x:auto;margin-top:8px}
+#shiftTable table td.shift-0{background:#ddeeff}
+#shiftTable table td.shift-1{background:#ffeedd}
+#shiftTable table td.shift-2{background:#f0e6ff}
+#shiftTable table td.shift-3{background:#ffe082;color:#5a3e00}
+#shiftTable table td.shift-4{background:#b3e5fc;color:#01579b}
+#shiftTable table td.shift-5{background:#f8bbd0;color:#880e4f}
+#shiftTable table td.closed{background:#bdbdbd;color:#424242}
+#shiftTable table td.off{background:#f5f5f5;color:#9e9e9e}
+#shiftTable table td.wish-off{background:#ffcdd2;color:#b71c1c}
+#shiftTable table td.weekend{background:#fce4ec;color:#880e4f}
+#shiftTable table th.weekend{background:#c00000}
+.check-row-am td.ok{background:#cce8ff;color:#0c4a6e}
+.check-row-am td.ng{background:#ff9999;color:#7b1c1c;font-weight:bold}
+.check-row-am td.skip{background:#ddd;color:#888}
+.check-row-pm td.ok{background:#ffd9b0;color:#7c3000}
+.check-row-pm td.ng{background:#ff9999;color:#7b1c1c;font-weight:bold}
+.check-row-pm td.skip{background:#ddd;color:#888}
+.tab-bar{display:flex;gap:4px;margin-bottom:0}
+.tab{padding:8px 18px;cursor:pointer;border-radius:6px 6px 0 0;background:#e5edff;color:#1a56db;font-weight:bold;font-size:13px}
+.tab.active{background:#1a56db;color:#fff}
+.tab-content{display:none}.tab-content.active{display:block}
+.notice{background:#fff8e1;border:1px solid #f6c90e;border-radius:4px;padding:8px 12px;margin-bottom:10px;font-size:13px}
+.vac-cell.marked{background:#ff9999}
+.vac-cell.weekend-bg{background:#ffe5e5}
+.vac-cell.closed-cell{background:#aaa;color:#fff;font-weight:bold;cursor:pointer}
+.closed-header{background:#555!important;color:#fff!important}
+.need-row td{background:#e8f0ff!important}
+.need-row-pm td{background:#fff2e0!important}
+select{padding:3px 6px;border:1px solid #ccc;border-radius:4px;font-size:13px}
+.over{color:#c00;font-weight:bold}
+.need-input{width:36px!important;font-weight:bold}
+.default-need{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.default-need label{font-size:13px}
+.default-need input{width:60px;padding:3px 6px;border:1px solid #ccc;border-radius:4px;font-size:13px;text-align:center}
+</style>
+</head>
+<body>
+<h1>🗓 シフト自動作成ツール</h1>
+<div class="container">
+
+<div class="tab-bar">
+  <div class="tab active" onclick="showTab('tab-setup')">① 基本設定</div>
+  <div class="tab" onclick="showTab('tab-vacation')">② 店休日・希望休</div>
+  <div class="tab" onclick="showTab('tab-result')">③ シフト表</div>
+</div>
+
+<!-- ===== タブ①: 基本設定 ===== -->
+<div id="tab-setup" class="tab-content active card" style="border-radius:0 8px 8px 8px">
+  <div class="grid2">
+    <!-- スタッフ -->
+    <div>
+      <h2>スタッフ一覧</h2>
+      <table id="staffTable">
+        <thead><tr>
+          <th>名前</th><th>雇用区分</th><th>目標時間<br>(h/月)</th><th>週最大<br>日数</th><th>連続上限<br>日数</th><th>早番<br>優先</th><th>限定シフト<br>(空=全て可)</th><th></th>
+        </tr></thead>
+        <tbody id="staffBody"></tbody>
+      </table>
+      <div class="actions">
+        <button class="btn btn-sm" onclick="addStaff()">＋ スタッフ追加</button>
+      </div>
+    </div>
+    <!-- シフト種別 -->
+    <div>
+      <h2>シフト種別</h2>
+      <table id="shiftTypeTable">
+        <thead><tr>
+          <th>シフト名</th><th>開始</th><th>終了</th><th>実働時間(h)</th><th>区分</th><th>早番<br>必須</th><th></th>
+        </tr></thead>
+        <tbody id="shiftTypeBody"></tbody>
+      </table>
+      <div class="actions">
+        <button class="btn btn-sm" onclick="addShiftType()">＋ シフト追加</button>
+      </div>
+      <br>
+      <h2>1日の必要人数（デフォルト）</h2>
+      <div class="default-need">
+        <div>
+          <label>🌅 午前 — 平日</label><br>
+          <input type="number" id="morningWD" value="4" min="0" max="30">
+        </div>
+        <div>
+          <label>🌅 午前 — 土日</label><br>
+          <input type="number" id="morningWE" value="4" min="0" max="30">
+        </div>
+        <div>
+          <label>🌇 午後 — 平日</label><br>
+          <input type="number" id="afternoonWD" value="3" min="0" max="30">
+        </div>
+        <div>
+          <label>🌇 午後 — 土日</label><br>
+          <input type="number" id="afternoonWE" value="3" min="0" max="30">
+        </div>
+      </div>
+      <p style="font-size:12px;color:#888;margin-top:6px">※ 日ごとに個別変更する場合は「②店休日・希望休」タブの必要人数行で上書きできます</p>
+      <br>
+      <h2>対象月</h2>
+      <div class="year-month">
+        <label>年</label><input type="number" id="targetYear" value="2026" min="2020" max="2030">
+        <label>月</label><input type="number" id="targetMonth" value="6" min="1" max="12">
+      </div>
+      <button class="btn btn-primary" onclick="showTab('tab-vacation');buildVacationSheet()">次へ: 店休日・希望休を入力 →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== タブ②: 店休日・希望休 ===== -->
+<div id="tab-vacation" class="tab-content card" style="border-radius:0 8px 8px 8px">
+  <div class="notice">
+    🔴 <b>店休日</b>行のセルをクリック → その日を店休にする（全員「店休」）<br>
+    🌅 <b>午前</b> / 🌇 <b>午後</b>の数字セルを直接編集 → その日の必要人数を個別に変更<br>
+    👤 スタッフ行をクリック → 希望休（「休」マーク）
+  </div>
+  <div id="vacationSheet" style="overflow-x:auto"></div>
+  <div class="actions" style="margin-top:12px">
+    <button class="btn btn-primary" onclick="showTab('tab-result');generateShift()">③ シフトを自動生成 →</button>
+  </div>
+</div>
+
+<!-- ===== タブ③: シフト表 ===== -->
+<div id="tab-result" class="tab-content card" style="border-radius:0 8px 8px 8px">
+  <div class="actions" style="margin-bottom:12px">
+    <button class="btn btn-success" onclick="generateShift()">🔄 再生成</button>
+    <button class="btn btn-warn" onclick="exportExcel()">📥 Excelダウンロード</button>
+  </div>
+  <div id="shiftTable"></div>
+</div>
+
+</div>
+
+<script>
+// ===== 初期データ =====
+let staffList = [
+  {name:"川端", type:"正社員", targetHours:176, maxWeek:5, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
+  {name:"尾崎", type:"正社員", targetHours:176, maxWeek:5, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
+  {name:"三井", type:"パート", targetHours:150, maxWeek:5, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
+  {name:"松本", type:"パート", targetHours:150, maxWeek:4, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
+  {name:"中村", type:"パート", targetHours:80,  maxWeek:4, maxConsec:5, allowedShifts:["①午前","②午後","③早番","④通し"], earlyPriority:false},
+  {name:"園川", type:"パート", targetHours:60,  maxWeek:3, maxConsec:5, allowedShifts:["⑤早番短","⑥午前短"], earlyPriority:true},
+];
+// period: "morning" | "afternoon" | "both"
+let shiftTypes = [
+  {name:"①午前", start:"09:00", end:"14:00", hours:5,    period:"morning",   isEarly:false},
+  {name:"②午後", start:"16:00", end:"20:00", hours:4,    period:"afternoon", isEarly:false},
+  {name:"③早番", start:"08:15", end:"14:00", hours:5.75, period:"morning",   isEarly:true},
+  {name:"④通し", start:"09:00", end:"20:00", hours:10,   period:"both",      isEarly:false},
+  {name:"⑤早番短", start:"08:15", end:"13:00", hours:4.75, period:"morning",  isEarly:true},
+  {name:"⑥午前短", start:"09:00", end:"13:00", hours:4,    period:"morning",  isEarly:false},
+];
+let vacations   = {}; // {name: Set<day>}
+let closedDays  = new Set();
+let dayMorning  = {}; // {day: number} 個別上書き
+let dayAfternoon= {};
+
+const WEEKDAYS = ["月","火","水","木","金","土","日"];
+const HOUR_TOL = 2;
+
+// 水曜(3)・土曜(6)は14時閉店 → 午後シフト不可
+const NO_AFTERNOON_WDAYS = new Set([3, 6]); // 0=日,1=月,...,6=土
+
+// ===== 日本の祝日を返す =====
+function getJapaneseHolidays(year, month) {
+  const holidays = new Set();
+
+  // 春分日・秋分日の近似計算
+  function shunbun(y) {
+    return Math.floor(20.8431 + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+  }
+  function shubun(y) {
+    return Math.floor(23.2488 + 0.242194*(y-1980) - Math.floor((y-1980)/4));
+  }
+
+  // 固定祝日（月, 日）
+  const fixed = [
+    [1,1],[2,11],[2,23],[4,29],[5,3],[5,4],[5,5],
+    [7,22],[8,11],[11,3],[11,23],[12,23]
+  ];
+  // ※ 7/22はマリンデーの仮, 実際はハッピーマンデー
+  // 正確なハッピーマンデー等を追加
+  const fixedSet = new Set(fixed.map(([m,d])=>`${m}-${d}`));
+
+  // ハッピーマンデー（第n月曜）
+  function nthMonday(y, m, n) {
+    let first = new Date(y, m-1, 1).getDay(); // 0=日
+    let mon = first === 1 ? 1 : 1 + (8 - first) % 7;
+    return mon + (n-1)*7;
+  }
+
+  const hm = [];
+  // 成人の日: 1月第2月曜
+  hm.push([1, nthMonday(year,1,2)]);
+  // 海の日: 7月第3月曜
+  hm.push([7, nthMonday(year,7,3)]);
+  // 敬老の日: 9月第3月曜
+  hm.push([9, nthMonday(year,9,3)]);
+  // スポーツの日(体育の日): 10月第2月曜
+  hm.push([10, nthMonday(year,10,2)]);
+
+  const allHolidays = [
+    [1,1],[2,11],[2,23],
+    [3, shunbun(year)],
+    [4,29],[5,3],[5,4],[5,5],
+    [8,11],
+    [9, shubun(year)],
+    [11,3],[11,23],
+    ...hm
+  ];
+
+  allHolidays.forEach(([m, d]) => {
+    if(m === month) holidays.add(d);
+    // 振替休日: 日曜なら翌月曜（同月内のみ）
+    const date = new Date(year, m-1, d);
+    if(date.getDay() === 0 && m === month) {
+      const furikae = d + 1;
+      const maxD = new Date(year, m, 0).getDate();
+      if(furikae <= maxD) holidays.add(furikae);
+    }
+  });
+
+  return holidays;
+}
+
+// ===== タブ切り替え =====
+function showTab(id) {
+  document.querySelectorAll('.tab-content').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(el=>el.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const map = {'tab-setup':0,'tab-vacation':1,'tab-result':2};
+  document.querySelectorAll('.tab')[map[id]].classList.add('active');
+}
+
+// ===== デフォルト必要人数 =====
+function getDefaultNeed(isWeekend) {
+  return {
+    morning:   isWeekend ? +document.getElementById('morningWE').value   : +document.getElementById('morningWD').value,
+    afternoon: isWeekend ? +document.getElementById('afternoonWE').value : +document.getElementById('afternoonWD').value,
+  };
+}
+function getDayNeed(d) {
+  const we = isWeekend(d);
+  const def = getDefaultNeed(we);
+  return {
+    morning:   dayMorning[d]   !== undefined ? dayMorning[d]   : def.morning,
+    afternoon: dayAfternoon[d] !== undefined ? dayAfternoon[d] : def.afternoon,
+  };
+}
+function isWeekend(d) {
+  const year  = +document.getElementById('targetYear').value;
+  const month = +document.getElementById('targetMonth').value;
+  const wd = new Date(year,month-1,d).getDay();
+  return wd===0||wd===6;
+}
+
+// ===== スタッフテーブル =====
+function renderStaffTable() {
+  const tbody = document.getElementById('staffBody');
+  tbody.innerHTML = '';
+  staffList.forEach((s,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" id="staffName_${i}" value="${s.name}" onchange="renameStaff(${i},this.value)"></td>
+      <td><select onchange="staffList[${i}].type=this.value">
+        ${['正社員','パート','アルバイト'].map(t=>`<option${t===s.type?' selected':''}>${t}</option>`).join('')}
+      </select></td>
+      <td><input type="number" value="${s.targetHours}" min="0" max="300" step="0.5" onchange="staffList[${i}].targetHours=+this.value" style="width:60px"></td>
+      <td><input type="number" value="${s.maxWeek}" min="1" max="7" onchange="staffList[${i}].maxWeek=+this.value" style="width:46px"></td>
+      <td><input type="number" value="${s.maxConsec}" min="1" max="14" onchange="staffList[${i}].maxConsec=+this.value" style="width:46px"></td>
+      <td style="text-align:center"><input type="checkbox" ${s.earlyPriority?'checked':''} onchange="staffList[${i}].earlyPriority=this.checked" title="③早番・⑤早番短を優先して割り当てる"></td>
+      <td style="min-width:100px">
+        ${shiftTypes.map((st,si)=>`<label style="display:inline-flex;align-items:center;gap:2px;margin:1px;font-size:11px;white-space:nowrap">
+          <input type="checkbox" ${(!s.allowedShifts||s.allowedShifts.length===0||s.allowedShifts.includes(st.name))?'checked':''}
+            onchange="toggleAllowed(${i},'${st.name}',this.checked)"> ${st.name}
+        </label>`).join('')}
+      </td>
+      <td><button class="btn-sm btn-danger-sm" onclick="removeStaff(${i})">削除</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function renameStaff(i, newName) {
+  const old = staffList[i].name;
+  staffList[i].name = newName;
+  if(vacations[old]) { vacations[newName]=vacations[old]; delete vacations[old]; }
+}
+function addStaff() {
+  staffList.push({name:"新スタッフ",type:"パート",targetHours:80,maxWeek:4,maxConsec:5,allowedShifts:[],earlyPriority:false});
+  renderStaffTable();
+  const idx = staffList.length-1;
+  setTimeout(()=>{ const el=document.getElementById(`staffName_${idx}`); if(el){el.focus();el.select();} },50);
+}
+function toggleAllowed(staffIdx, shiftName, checked) {
+  const s = staffList[staffIdx];
+  // allowedShifts が空 = 全て可 → 初めてチェックを外したとき全シフトを明示的にセット
+  if(!s.allowedShifts || s.allowedShifts.length === 0) {
+    s.allowedShifts = shiftTypes.map(st => st.name);
+  }
+  if(checked) {
+    if(!s.allowedShifts.includes(shiftName)) s.allowedShifts.push(shiftName);
+  } else {
+    s.allowedShifts = s.allowedShifts.filter(n => n !== shiftName);
+  }
+}
+function removeStaff(i) { staffList.splice(i,1); renderStaffTable(); }
+
+// ===== シフト種別テーブル =====
+const PERIOD_LABELS = {morning:"🌅 午前", afternoon:"🌇 午後", both:"🌅+🌇 両方"};
+function renderShiftTypeTable() {
+  const tbody = document.getElementById('shiftTypeBody');
+  tbody.innerHTML = '';
+  shiftTypes.forEach((s,i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" id="shiftName_${i}" value="${s.name}" onchange="shiftTypes[${i}].name=this.value" style="width:70px"></td>
+      <td><input type="time" value="${s.start}" onchange="shiftTypes[${i}].start=this.value;autoCalcHours(${i})"></td>
+      <td><input type="time" value="${s.end}"   onchange="shiftTypes[${i}].end=this.value;autoCalcHours(${i})"></td>
+      <td><input type="number" id="shiftHours_${i}" value="${s.hours}" min="0" max="24" step="0.25" onchange="shiftTypes[${i}].hours=+this.value" style="width:60px"></td>
+      <td><select onchange="shiftTypes[${i}].period=this.value">
+        ${['morning','afternoon','both'].map(p=>`<option value="${p}"${p===s.period?' selected':''}>${PERIOD_LABELS[p]}</option>`).join('')}
+      </select></td>
+      <td style="text-align:center"><input type="checkbox" ${s.isEarly?'checked':''} onchange="shiftTypes[${i}].isEarly=this.checked" title="毎日1人必ず割り当て"></td>
+      <td><button class="btn-sm btn-danger-sm" onclick="removeShift(${i})">削除</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+function autoCalcHours(i) {
+  const s = shiftTypes[i];
+  if(!s.start||!s.end) return;
+  const [sh,sm]=s.start.split(':').map(Number);
+  const [eh,em]=s.end.split(':').map(Number);
+  let mins=(eh*60+em)-(sh*60+sm);
+  if(mins<=0) mins+=1440;
+  const h=Math.round(mins/60*100)/100;
+  shiftTypes[i].hours=h;
+  const el=document.getElementById(`shiftHours_${i}`);
+  if(el) el.value=h;
+}
+function addShiftType() {
+  shiftTypes.push({name:"新シフト",start:"09:00",end:"17:00",hours:8,period:"morning",isEarly:false});
+  renderShiftTypeTable();
+  const idx=shiftTypes.length-1;
+  setTimeout(()=>document.getElementById(`shiftName_${idx}`)?.focus(),50);
+}
+function removeShift(i) { shiftTypes.splice(i,1); renderShiftTypeTable(); }
+
+// ===== 希望休・店休日シート =====
+function buildVacationSheet() {
+  const year  = +document.getElementById('targetYear').value;
+  const month = +document.getElementById('targetMonth').value;
+  const days  = new Date(year,month,0).getDate();
+  const defNeedM = +document.getElementById('morningWD').value;
+  const defNeedA = +document.getElementById('afternoonWD').value;
+
+  // 日曜日・祝日をデフォルト店休に
+  const holidays = getJapaneseHolidays(year, month);
+  for(let d=1; d<=days; d++) {
+    const wd = new Date(year,month-1,d).getDay();
+    if(wd === 0 || holidays.has(d)) closedDays.add(d);
+  }
+
+  let html = '<table><thead><tr><th style="min-width:110px">名前</th>';
+  for(let d=1;d<=days;d++) {
+    const wd=new Date(year,month-1,d).getDay(), wdIdx=wd===0?6:wd-1;
+    const isWE=wd===0||wd===6;
+    const isShort = NO_AFTERNOON_WDAYS.has(wd); // 水・土は〜14時
+    html+=`<th${isWE?' class="weekend"':''} style="min-width:34px;font-size:11px">${d}<br>${WEEKDAYS[wdIdx]}${isShort?'<br><span style="color:#e65100;font-size:9px">〜14時</span>':''}</th>`;
+  }
+  html+='<th></th></tr></thead><tbody>';
+
+  // 店休日行
+  html+=`<tr><td class="closed-header" style="text-align:left;padding:4px 8px;white-space:nowrap;cursor:pointer">🔴 店休日</td>`;
+  for(let d=1;d<=days;d++) {
+    const isCl=closedDays.has(d);
+    html+=`<td class="vac-cell${isCl?' closed-cell':''}" onclick="toggleClosed(${d})" style="cursor:pointer">${isCl?'休':''}</td>`;
+  }
+  html+='<td></td></tr>';
+
+  // 午前必要人数行
+  html+=`<tr class="need-row"><td style="text-align:left;padding:4px 8px;white-space:nowrap;font-size:12px;color:#0c4a6e;font-weight:bold">🌅 午前 必要人数</td>`;
+  for(let d=1;d<=days;d++) {
+    const isCl=closedDays.has(d);
+    const val=dayMorning[d]!==undefined?dayMorning[d]:getDefaultNeed(isWeekend(d)).morning;
+    if(isCl) html+=`<td style="background:#aaa;color:#fff">-</td>`;
+    else html+=`<td><input class="need-input" type="number" value="${val}" min="0" max="30" onchange="dayMorning[${d}]=+this.value" style="width:34px;border:none;outline:none;font-size:12px;font-weight:bold;color:#0c4a6e;text-align:center;background:transparent"></td>`;
+  }
+  html+='<td></td></tr>';
+
+  // 午後必要人数行
+  html+=`<tr class="need-row-pm"><td style="text-align:left;padding:4px 8px;white-space:nowrap;font-size:12px;color:#7c3000;font-weight:bold">🌇 午後 必要人数</td>`;
+  for(let d=1;d<=days;d++) {
+    const isCl=closedDays.has(d);
+    const val=dayAfternoon[d]!==undefined?dayAfternoon[d]:getDefaultNeed(isWeekend(d)).afternoon;
+    if(isCl) html+=`<td style="background:#aaa;color:#fff">-</td>`;
+    else html+=`<td><input class="need-input" type="number" value="${val}" min="0" max="30" onchange="dayAfternoon[${d}]=+this.value" style="width:34px;border:none;outline:none;font-size:12px;font-weight:bold;color:#7c3000;text-align:center;background:transparent"></td>`;
+  }
+  html+='<td></td></tr>';
+
+  // スタッフ行
+  staffList.forEach(s => {
+    if(!vacations[s.name]) vacations[s.name]=new Set();
+    html+=`<tr><td style="white-space:nowrap;text-align:left;padding:4px 8px">${s.name}</td>`;
+    for(let d=1;d<=days;d++) {
+      const wd=new Date(year,month-1,d).getDay(), isWE=wd===0||wd===6;
+      const isCl=closedDays.has(d);
+      const mk=vacations[s.name].has(d);
+      if(isCl) html+=`<td style="background:#aaa;color:#fff;font-size:11px">店休</td>`;
+      else html+=`<td class="vac-cell${mk?' marked':''}${isWE?' weekend-bg':''}" onclick="toggleVac('${s.name}',${d},this)">${mk?'休':''}</td>`;
+    }
+    html+=`<td id="vc_${s.name.replace(/[ 　]/g,'_')}">${vacations[s.name].size}</td></tr>`;
+  });
+  html+='</tbody></table>';
+  document.getElementById('vacationSheet').innerHTML=html;
+}
+
+function toggleClosed(day) {
+  if(closedDays.has(day)) closedDays.delete(day); else closedDays.add(day);
+  buildVacationSheet();
+}
+function toggleVac(name, day, cell) {
+  if(!vacations[name]) vacations[name]=new Set();
+  if(vacations[name].has(day)) {
+    vacations[name].delete(day); cell.classList.remove('marked'); cell.textContent='';
+  } else {
+    vacations[name].add(day); cell.classList.add('marked'); cell.textContent='休';
+  }
+  const el=document.getElementById('vc_'+name.replace(/[ 　]/g,'_'));
+  if(el) el.textContent=vacations[name].size;
+}
+
+// ===== シフト自動生成 =====
+let lastSchedule = null;
+
+function generateShift() {
+  const year  = +document.getElementById('targetYear').value;
+  const month = +document.getElementById('targetMonth').value;
+  const days  = new Date(year,month,0).getDate();
+  const n = staffList.length;
+
+  const schedule   = Array.from({length:n},()=>new Array(days+1).fill(''));
+  const staffHours = new Array(n).fill(0);
+
+  // 希望休・店休を先に入れる
+  staffList.forEach((s,i)=>{
+    const vac=vacations[s.name]||new Set();
+    for(let d=1;d<=days;d++) {
+      if(closedDays.has(d))  schedule[i][d]='店休';
+      else if(vac.has(d))    schedule[i][d]='休み';
+    }
+  });
+
+  function canWork(si,day) {
+    const mc=staffList[si].maxConsec; let consec=0;
+    for(let d=Math.max(1,day-mc);d<day;d++) {
+      const sv=schedule[si][d];
+      if(sv&&sv!=='休み'&&sv!=='店休') consec++; else consec=0;
+    }
+    return consec<mc;
+  }
+  function withinHours(si,h) {
+    const tgt=staffList[si].targetHours||999;
+    return staffHours[si]+h<=tgt+HOUR_TOL;
+  }
+  function shuffle(arr) {
+    for(let i=arr.length-1;i>0;i--) {
+      const j=Math.floor(Math.random()*(i+1));
+      [arr[i],arr[j]]=[arr[j],arr[i]];
+    }
+    return arr;
+  }
+
+  const earlyShifts     = shiftTypes.filter(s=>s.isEarly);
+  const morningShifts   = shiftTypes.filter(s=>s.period==='morning');
+  const afternoonShifts = shiftTypes.filter(s=>s.period==='afternoon');
+  const bothShifts      = shiftTypes.filter(s=>s.period==='both');
+
+  // 早番回数トラッキング
+  const earlyCount  = new Array(n).fill(0);
+  // 最終勤務日トラッキング（休みの分散に使用）
+  const lastWorkDay = new Array(n).fill(0);
+
+  // 全稼働日数（店休除く）
+  const workingDaysTotal = Array.from({length:days},(_,i)=>i+1).filter(d=>!closedDays.has(d)).length;
+
+  // 各スタッフの「期待勤務間隔」を事前計算（makeOrder用）
+  const expectedGap = staffList.map(s => {
+    const allowed = s.allowedShifts;
+    const usable = allowed && allowed.length > 0
+      ? shiftTypes.filter(st => allowed.includes(st.name))
+      : shiftTypes;
+    const avgH = usable.reduce((sum,st)=>sum+st.hours,0) / Math.max(usable.length,1);
+    const targetDays = s.targetHours / Math.max(avgH,1);
+    return workingDaysTotal / Math.max(targetDays, 1);
+  });
+
+  // 日ごとの「稼働日累計」を事前計算（ペースチェック用）
+  const cumulWorkDays = new Array(days+1).fill(0);
+  { let c=0; for(let d=1;d<=days;d++){ if(!closedDays.has(d)) c++; cumulWorkDays[d]=c; } }
+
+  // 各スタッフの平均シフト時間（ペース計算用）
+  const avgShiftH = staffList.map(s => {
+    const allowed = s.allowedShifts;
+    const usable = allowed && allowed.length > 0
+      ? shiftTypes.filter(st => allowed.includes(st.name))
+      : shiftTypes;
+    return usable.reduce((sum,st)=>sum+st.hours,0) / Math.max(usable.length,1);
+  });
+
+  /**
+   * ペースチェック: 今日時点の「期待累計時間」より avgShiftH 以上多く働いていたら
+   * 今日は休んでもらい、月内に均等に勤務日を散らす。
+   * 正社員は fill-up パスで補うため除外。
+   */
+  function aheadOfPace(si, d) {
+    if(staffList[si].type === '正社員') return false;
+    const tgt = staffList[si].targetHours;
+    if(!tgt) return false;
+    const expected = tgt * cumulWorkDays[d] / Math.max(workingDaysTotal, 1);
+    return staffHours[si] > expected + avgShiftH[si] * 0.6;
+  }
+
+  // 優先順位 = 達成率が低い & 前回出勤から時間が経っている人が先
+  function makeOrder(d) {
+    const idx = [...Array(n).keys()];
+    for(let i=idx.length-1;i>0;i--) {
+      const j=Math.floor(Math.random()*(i+1));
+      [idx[i],idx[j]]=[idx[j],idx[i]];
+    }
+    idx.sort((a,b) => {
+      const rA = staffList[a].targetHours > 0 ? staffHours[a] / staffList[a].targetHours : 1;
+      const rB = staffList[b].targetHours > 0 ? staffHours[b] / staffList[b].targetHours : 1;
+      // 前回出勤からの経過日数 ÷ 期待間隔 → 1超えで「もう出勤すべき」
+      const relGapA = expectedGap[a] > 0 ? (d - lastWorkDay[a]) / expectedGap[a] : 0;
+      const relGapB = expectedGap[b] > 0 ? (d - lastWorkDay[b]) / expectedGap[b] : 0;
+      // スコアが低い人ほど優先（達成率低 or ギャップ大 → スコア低）
+      return (rA - relGapA * 0.6) - (rB - relGapB * 0.6);
+    });
+    return idx;
+  }
+
+  for(let d=1;d<=days;d++) {
+    if(closedDays.has(d)) continue;
+
+    let {morning: mNeed, afternoon: aNeed} = getDayNeed(d);
+    const dayOfWeek = new Date(year, month-1, d).getDay();
+    const isShortDay = NO_AFTERNOON_WDAYS.has(dayOfWeek); // 水・土は14時閉店 → 午後なし
+    if(isShortDay) aNeed = 0; // 午後必要人数を0に
+    const order = makeOrder(d);
+
+    function avail(si, h, shiftName) {
+      const allowed = staffList[si].allowedShifts;
+      if(allowed && allowed.length > 0 && !allowed.includes(shiftName)) return false;
+      // 水・土は午後を含むシフト（afternoon/both）は入れない
+      if(isShortDay) {
+        const st = shiftTypes.find(s=>s.name===shiftName);
+        if(st && (st.period === 'afternoon' || st.period === 'both')) return false;
+      }
+      // ペースチェック: パートが月前半に集中しすぎないようにする
+      if(aheadOfPace(si, d)) return false;
+      return schedule[si][d]==='' && canWork(si,d) && withinHours(si,h);
+    }
+
+    // ① 早番必須
+    let earlyFilled = false;
+    // Pass1: 早番優先スタッフ（園川など）を先に ※ペースチェックあり
+    for(const si of order.filter(si => staffList[si].earlyPriority)) {
+      if(earlyFilled) break;
+      for(const shift of earlyShifts) {
+        if(avail(si, shift.hours, shift.name)) {
+          schedule[si][d]=shift.name; staffHours[si]+=shift.hours;
+          if(shift.period==='morning'||shift.period==='both') mNeed--;
+          if(shift.period==='afternoon'||shift.period==='both') aNeed--;
+          earlyFilled=true; break;
+        }
+      }
+    }
+    // Pass2: 早番優先以外は早番回数が少ない人から均等に ※ペースチェックあり
+    if(!earlyFilled) {
+      const pass2 = order
+        .filter(si => !staffList[si].earlyPriority)
+        .sort((a,b) => earlyCount[a] - earlyCount[b]);
+      for(const shift of earlyShifts) {
+        if(earlyFilled) break;
+        for(const si of pass2) {
+          if(avail(si, shift.hours, shift.name)) {
+            schedule[si][d]=shift.name; staffHours[si]+=shift.hours;
+            earlyCount[si]++;
+            if(shift.period==='morning'||shift.period==='both') mNeed--;
+            if(shift.period==='afternoon'||shift.period==='both') aNeed--;
+            earlyFilled=true; break;
+          }
+        }
+      }
+    }
+    // Pass3フォールバック: ペースチェックを無視して誰かに早番を入れる（早番ゼロの日を防ぐ）
+    if(!earlyFilled) {
+      const allEarlyCapable = [...order].sort((a,b) => {
+        // ペースオーバー率が低い順（最も余裕がある人）
+        const tA = staffList[a].targetHours||1, tB = staffList[b].targetHours||1;
+        return (staffHours[a]/tA) - (staffHours[b]/tB);
+      });
+      for(const shift of earlyShifts) {
+        if(earlyFilled) break;
+        for(const si of allEarlyCapable) {
+          const allowed = staffList[si].allowedShifts;
+          if(allowed && allowed.length > 0 && !allowed.includes(shift.name)) continue;
+          if(schedule[si][d]==='' && canWork(si,d) && withinHours(si,shift.hours)) {
+            schedule[si][d]=shift.name; staffHours[si]+=shift.hours;
+            if(!staffList[si].earlyPriority) earlyCount[si]++;
+            if(shift.period==='morning'||shift.period==='both') mNeed--;
+            if(shift.period==='afternoon'||shift.period==='both') aNeed--;
+            earlyFilled=true; break;
+          }
+        }
+      }
+    }
+
+    // ② 通しシフト(both)を割り当て
+    if(bothShifts.length>0) {
+      const bShift = bothShifts[0];
+      for(const si of order) {
+        if(mNeed<=0 && aNeed<=0) break;
+        if(mNeed>0 && aNeed>0 && avail(si, bShift.hours, bShift.name)) {
+          schedule[si][d]=bShift.name; staffHours[si]+=bShift.hours;
+          mNeed--; aNeed--;
+        }
+      }
+    }
+
+    // ③ 残り午前シフトを割り当て（早番以外）
+    outer_m:
+    for(const shift of morningShifts.filter(s=>!s.isEarly)) {
+      for(const si of order) {
+        if(mNeed<=0) break outer_m;
+        if(avail(si, shift.hours, shift.name)) {
+          schedule[si][d]=shift.name; staffHours[si]+=shift.hours;
+          mNeed--;
+        }
+      }
+    }
+
+    // ④ 午後シフトを割り当て
+    outer_a:
+    for(const shift of afternoonShifts) {
+      for(const si of order) {
+        if(aNeed<=0) break outer_a;
+        if(avail(si, shift.hours, shift.name)) {
+          schedule[si][d]=shift.name;
+          staffHours[si]+=shift.hours;
+          aNeed--;
+        }
+      }
+    }
+
+    // 未割り当ては休み
+    for(let i=0;i<n;i++) {
+      if(schedule[i][d]==='') schedule[i][d]='休み';
+    }
+
+    // 最終勤務日を更新（休み分散スコアに使用）
+    for(let i=0;i<n;i++) {
+      if(schedule[i][d] !== '休み') lastWorkDay[i] = d;
+    }
+  }
+
+  // ===== 社員の時間補填パス（目標時間を下回らないよう休み日にシフトを追加）=====
+  for(let i=0;i<n;i++) {
+    if(staffList[i].type !== '正社員') continue;
+    const tgt = staffList[i].targetHours || 0;
+    if(staffHours[i] >= tgt) continue;
+
+    const vac = vacations[staffList[i].name] || new Set();
+    const allowed = staffList[i].allowedShifts;
+
+    for(let d=1; d<=days && staffHours[i] < tgt; d++) {
+      if(schedule[i][d] !== '休み') continue;
+      if(vac.has(d) || closedDays.has(d)) continue;
+      if(!canWork(i,d)) continue;
+
+      // 残り時間に一番近いシフトを選ぶ（ソート昇順 = 差が小さい順）
+      const remaining = tgt - staffHours[i];
+      const candidates = shiftTypes
+        .filter(s => !allowed || allowed.length===0 || allowed.includes(s.name))
+        .sort((a,b) => Math.abs(remaining - a.hours) - Math.abs(remaining - b.hours));
+
+      if(candidates.length > 0) {
+        const shift = candidates[0];
+        schedule[i][d] = shift.name;
+        staffHours[i] += shift.hours;
+      }
+    }
+  }
+
+  lastSchedule={schedule,year,month,days,staffHours};
+  renderShiftTable(schedule,year,month,days,staffHours);
+}
+
+function renderShiftTable(schedule,year,month,days,staffHours) {
+  const shiftColorMap={};
+  shiftTypes.forEach((s,i)=>shiftColorMap[s.name]=`shift-${i%6}`);
+
+  let html=`<h3 style="margin-bottom:8px">${year}年${month}月 シフト表</h3>`;
+  html+='<div style="overflow-x:auto"><table><thead><tr><th style="min-width:100px">名前</th>';
+  for(let d=1;d<=days;d++) {
+    const wd=new Date(year,month-1,d).getDay(), wdIdx=wd===0?6:wd-1, isWE=wd===0||wd===6;
+    const isCl=closedDays.has(d);
+    html+=`<th${isWE&&!isCl?' class="weekend"':isCl?' style="background:#888;color:#fff"':''} style="min-width:36px">${d}<br>${WEEKDAYS[wdIdx]}</th>`;
+  }
+  html+='<th>出勤日数</th><th>勤務時間(h)</th><th>目標(h)</th><th>過不足</th></tr></thead><tbody>';
+
+  staffList.forEach((s,i)=>{
+    const vac=vacations[s.name]||new Set();
+    let workDays=0;
+    html+=`<tr><td style="text-align:left;padding:4px 8px;white-space:nowrap">${s.name}</td>`;
+    for(let d=1;d<=days;d++) {
+      const sv=schedule[i][d];
+      let cls='';
+      if(sv==='店休') cls='closed';
+      else if(sv==='休み') cls=vac.has(d)?'wish-off':'off';
+      else cls=shiftColorMap[sv]||'';
+      const wd=new Date(year,month-1,d).getDay();
+      // 土日の休みも通常の休みと同じ色にする（weekendクラスは付けない）
+      if(sv&&sv!=='休み'&&sv!=='店休') workDays++;
+      html+=`<td class="${cls}" style="font-size:12px">${sv||''}</td>`;
+    }
+    const actH=Math.round((staffHours[i]||0)*100)/100;
+    const tgtH=s.targetHours||0;
+    const diff=Math.round((actH-tgtH)*100)/100;
+    const diffStr=diff>=0?`+${diff}`:`${diff}`;
+    html+=`<td style="font-weight:bold">${workDays}</td><td style="font-weight:bold">${actH}</td><td>${tgtH}</td>`;
+    html+=`<td class="${Math.abs(diff)<=HOUR_TOL?'':'over'}">${diffStr}</td></tr>`;
+  });
+  html+='</tbody></table></div>';
+
+  // 充足確認（午前・午後）
+  html+='<br><div style="overflow-x:auto"><table><thead><tr><th>充足確認</th>';
+  for(let d=1;d<=days;d++) {
+    const wd=new Date(year,month-1,d).getDay(), isWE=wd===0||wd===6;
+    const isCl=closedDays.has(d);
+    html+=`<th${isWE&&!isCl?' class="weekend"':''} style="font-size:11px${isCl?';background:#888;color:#fff':''}">${d}</th>`;
+  }
+  html+='</tr></thead><tbody>';
+
+  // 午前
+  html+='<tr class="check-row-am"><td style="text-align:left;padding:4px 8px;font-weight:bold;white-space:nowrap">🌅 午前<br><span style="font-size:11px;font-weight:normal;color:#888">';
+  html+=shiftTypes.filter(s=>s.period==='morning'||s.period==='both').map(s=>s.name).join(' / ')+'</span></td>';
+  for(let d=1;d<=days;d++) {
+    if(closedDays.has(d)){html+='<td class="skip">-</td>';continue;}
+    const need=getDayNeed(d).morning;
+    const cnt=staffList.filter((_,i)=>{
+      const sv=schedule[i][d];
+      const t=shiftTypes.find(s=>s.name===sv);
+      return t&&(t.period==='morning'||t.period==='both');
+    }).length;
+    html+=`<td class="${cnt<need?'ng':'ok'}">${cnt}/${need}</td>`;
+  }
+  html+='</tr>';
+
+  // 午後
+  html+='<tr class="check-row-pm"><td style="text-align:left;padding:4px 8px;font-weight:bold;white-space:nowrap">🌇 午後<br><span style="font-size:11px;font-weight:normal;color:#888">';
+  html+=shiftTypes.filter(s=>s.period==='afternoon'||s.period==='both').map(s=>s.name).join(' / ')+'</span></td>';
+  for(let d=1;d<=days;d++) {
+    if(closedDays.has(d)){html+='<td class="skip">-</td>';continue;}
+    const wd=new Date(year,month-1,d).getDay();
+    // 水・土は14時閉店で午後なし → need=0
+    const need = NO_AFTERNOON_WDAYS.has(wd) ? 0 : getDayNeed(d).afternoon;
+    if(need===0){html+='<td class="skip">-</td>';continue;}
+    const cnt=staffList.filter((_,i)=>{
+      const sv=schedule[i][d];
+      const t=shiftTypes.find(s=>s.name===sv);
+      return t&&(t.period==='afternoon'||t.period==='both');
+    }).length;
+    html+=`<td class="${cnt<need?'ng':'ok'}">${cnt}/${need}</td>`;
+  }
+  html+='</tr></tbody></table></div>';
+  document.getElementById('shiftTable').innerHTML=html;
+}
+
+// ===== Excel出力 =====
+function exportExcel() {
+  if(!lastSchedule){alert('先にシフトを生成してください');return;}
+  if(typeof XLSX==='undefined'){alert('Excelダウンロードにはインターネット接続が必要です。\nページを再読み込みして再試行してください。');return;}
+  const {schedule,year,month,days,staffHours}=lastSchedule;
+  const wb=XLSX.utils.book_new();
+
+  const headers=['名前',...Array.from({length:days},(_,i)=>{
+    const d=i+1,wd=new Date(year,month-1,d).getDay(),wdIdx=wd===0?6:wd-1;
+    return `${d}(${WEEKDAYS[wdIdx]})`;
+  }),'出勤日数','勤務時間(h)','目標(h)','過不足(h)'];
+  const rows=[headers];
+  staffList.forEach((s,i)=>{
+    let w=0; const row=[s.name];
+    for(let d=1;d<=days;d++){const sv=schedule[i][d];row.push(sv||'');if(sv&&sv!=='休み'&&sv!=='店休')w++;}
+    const actH=Math.round((staffHours[i]||0)*100)/100;
+    row.push(w,actH,s.targetHours||0,Math.round((actH-(s.targetHours||0))*100)/100);
+    rows.push(row);
+  });
+  rows.push([],[['【充足確認】']]);
+  // 午前
+  const amRow=['🌅 午前'];
+  for(let d=1;d<=days;d++){
+    if(closedDays.has(d)){amRow.push('-');continue;}
+    const need=getDayNeed(d).morning;
+    const cnt=staffList.filter((_,i)=>{const sv=schedule[i][d];const t=shiftTypes.find(s=>s.name===sv);return t&&(t.period==='morning'||t.period==='both');}).length;
+    amRow.push(`${cnt}/${need}`);
+  }
+  rows.push(amRow);
+  // 午後
+  const pmRow=['🌇 午後'];
+  for(let d=1;d<=days;d++){
+    if(closedDays.has(d)){pmRow.push('-');continue;}
+    const wd2=new Date(year,month-1,d).getDay();
+    const need=NO_AFTERNOON_WDAYS.has(wd2)?0:getDayNeed(d).afternoon;
+    if(need===0){pmRow.push('-');continue;}
+    const cnt=staffList.filter((_,i)=>{const sv=schedule[i][d];const t=shiftTypes.find(s=>s.name===sv);return t&&(t.period==='afternoon'||t.period==='both');}).length;
+    pmRow.push(`${cnt}/${need}`);
+  }
+  rows.push(pmRow);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,ws,`${year}年${month}月シフト`);
+
+  const sr=[['名前','雇用区分','目標時間(h)','週最大日数','連続上限日数']];
+  staffList.forEach(s=>sr.push([s.name,s.type,s.targetHours,s.maxWeek,s.maxConsec]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sr),'スタッフ設定');
+
+  const tr=[['シフト名','開始','終了','実働時間(h)','区分']];
+  shiftTypes.forEach(s=>tr.push([s.name,s.start,s.end,s.hours,PERIOD_LABELS[s.period]]));
+  XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(tr),'シフト設定');
+
+  XLSX.writeFile(wb,`シフト表_${year}年${month}月.xlsx`);
+}
+
+// ===== 初期化 =====
+renderStaffTable();
+renderShiftTypeTable();
+const now=new Date();
+const nextMonth = new Date(now.getFullYear(), now.getMonth()+1, 1);
+document.getElementById('targetYear').value=nextMonth.getFullYear();
+document.getElementById('targetMonth').value=nextMonth.getMonth()+1;
+</script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</body>
+</html>
