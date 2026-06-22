@@ -913,9 +913,9 @@ async function exportExcel() {
     return s;
   }
 
-  // 勤務時間の式: シフトごとに (range="シフト名")*時間 を加算
+  // 勤務時間の式: シフトごとに (range="シフト名")*時間 を加算（= は不要、ExcelJSが付ける）
   function hoursFormula(range) {
-    return '=SUMPRODUCT(' +
+    return 'SUMPRODUCT(' +
       shiftTypes.map(s=>`(${range}="${s.name}")*${s.hours}`).join('+') +
     ')';
   }
@@ -942,11 +942,11 @@ async function exportExcel() {
     const actH=Math.round((staffHours[si]||0)*100)/100;
     const diff=Math.round((actH-(s.targetHours||0))*100)/100;
     row.getCell(days+2).value = {
-      formula: `=SUMPRODUCT((${range}<>"")*(${range}<>"休み")*(${range}<>"店休")*(${range}<>"午前休")*(${range}<>"午後休"))`,
+      formula: `SUMPRODUCT((${range}<>"")*(${range}<>"休み")*(${range}<>"店休")*(${range}<>"午前休")*(${range}<>"午後休"))`,
       result: staffList[si] ? [...Array(days)].filter((_,k)=>{ const v=schedule[si][k+1]; return v&&v!=='休み'&&v!=='店休'&&v!=='午前休'&&v!=='午後休'; }).length : 0
     };
     row.getCell(days+3).value = { formula: hoursFormula(range), result: actH };
-    row.getCell(days+5).value = { formula: `=${colAH}${excelRow}-${colTgt}${excelRow}`, result: diff };
+    row.getCell(days+5).value = { formula: `${colAH}${excelRow}-${colTgt}${excelRow}`, result: diff };
 
     row.eachCell((cell,col)=>{
       const d=col-1;
